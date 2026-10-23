@@ -82,5 +82,6 @@ export function notFound(what = "Not found"): never {
 }
 
 export function clientIp(req: NextRequest) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
+  // Behind Cloudflare, the visitor's real address is in cf-connecting-ip (x-forwarded-for would be Cloudflare's).
+  return req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0].trim() || req.headers.get("x-real-ip") || "local";
 }

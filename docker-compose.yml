@@ -1,7 +1,12 @@
+# Production on a server where Caddy is already installed: the app listens on 127.0.0.1:3003
+# and the server's Caddy proxies to it (see the Caddyfile in this folder).
 services:
   web:
     build: { context: ., target: web }
     restart: unless-stopped
+    # Only reachable from the server itself; the Caddy installed on the server proxies to it.
+    ports:
+      - "127.0.0.1:3003:3000"
     env_file: .env
     environment:
       MONGODB_URI: mongodb://mongo:27017/pocket
@@ -34,24 +39,7 @@ services:
     volumes:
       - redis:/data
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      APP_DOMAIN: ${APP_DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on: [web]
-
 volumes:
   mongo:
   redis:
   uploads:
-  caddy_data:
-  caddy_config:

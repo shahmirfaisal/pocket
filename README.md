@@ -20,7 +20,7 @@ An expense tracker that installs on your iPhone's Home Screen and feels like a n
 
 ## Stack
 
-Next.js (App Router, TypeScript) · Tailwind CSS · MongoDB (Mongoose) · Redis (sessions, rate limits, BullMQ jobs) · TanStack Query · Vaul / Motion · SimpleWebAuthn · web-push · Tesseract.js · ExcelJS / PapaParse / React-PDF · Docker Compose + Caddy.
+Next.js (App Router, TypeScript) · Tailwind CSS · MongoDB (Mongoose) · Redis (sessions, rate limits, BullMQ jobs) · TanStack Query · Vaul / Motion · SimpleWebAuthn · web-push · Tesseract.js · ExcelJS / PapaParse / React-PDF · Docker Compose behind Caddy.
 
 Amounts are stored as whole paisa (integers) so totals never drift.
 
@@ -60,14 +60,15 @@ Without `SMTP_PASS`, emails (password reset, invites) are printed in the termina
    - `APP_URL` / `APP_DOMAIN` — your domain.
    - `SMTP_PASS` — a Zoho **app-specific password** for me@shahmirfaisal.com (Zoho Mail → Settings → Security → App passwords). Use `smtppro.zoho.com` if you're on a paid Zoho plan, or `smtp.zoho.eu` / `smtp.zoho.in` if your Zoho account is in that region.
    - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` — run `npx web-push generate-vapid-keys`. Generate them once and keep them; changing them signs every phone out of push notifications.
-3. Start everything:
+3. Start Pocket:
 
    ```bash
    docker compose up -d --build
    ```
 
-   Caddy gets the HTTPS certificate automatically. HTTPS is required for Face ID and push notifications.
-4. On your iPhone, open the site in Safari → Share → **Add to Home Screen**, open Pocket from the Home Screen, then turn on notifications in Settings.
+   The app listens on `127.0.0.1:3003`, so only the server itself can reach it.
+4. Add the block from this folder's `Caddyfile` to `/etc/caddy/Caddyfile` and run `sudo systemctl reload caddy`. Caddy gets the HTTPS certificate automatically. HTTPS is required for Face ID and push notifications.
+5. On your iPhone, open the site in Safari → Share → **Add to Home Screen**, open Pocket from the Home Screen, then turn on notifications in Settings.
 
 MongoDB and Redis are only reachable from the app containers — they aren't published to the internet.
 
