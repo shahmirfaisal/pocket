@@ -49,7 +49,7 @@ export default function SettingsPage() {
   const set = async (patch: Record<string, unknown>) => {
     try { await saveSettings(patch); } catch (e) { toast(e instanceof ApiError ? e.message : "Couldn't save", "error"); }
   };
-  const logout = async () => {
+  const confirmLogout = async () => {
     if (!(await confirm({ title: "Log out of Pocket?", confirm: "Log out", danger: true }))) return;
     await logout();
   };
@@ -111,7 +111,7 @@ export default function SettingsPage() {
         <Line icon="lock" bg="#5F6672" title="Change password" onClick={() => setSheet("password")} />
       </Card>
 
-      <Button variant="secondary" size="md" onClick={logout} className="!text-neg">Log out</Button>
+      <Button variant="secondary" size="md" onClick={confirmLogout} className="!text-neg">Log out</Button>
       <button onClick={() => setSheet("delete")} className="text-center text-[13px] font-semibold text-muted">Delete my account</button>
       <span className="text-center text-xs text-faint">Pocket 1.0</span>
 

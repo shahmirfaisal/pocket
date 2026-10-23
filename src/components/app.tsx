@@ -149,7 +149,11 @@ export function AppShell({ initialUser, children }: { initialUser: PublicUser; c
   const open = useCallback(<K extends SheetKind>(kind: K, props?: Sheets[K]) => setSheet({ kind, props: props ?? {}, key: Date.now() }), []);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if ("serviceWorker" in navigator) {
+      if (process.env.NODE_ENV === "production") navigator.serviceWorker.register("/sw.js").catch(() => {});
+      // In development, remove any service worker left on localhost so it can't serve stale pages.
+      else navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister())).catch(() => {});
+    }
     // Load the sheets' code in the background so + still works if the connection drops later.
     const warm = setTimeout(() => {
       for (const load of Object.values(SHEET_LOADERS)) void load().catch(() => {});
