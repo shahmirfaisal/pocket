@@ -7,7 +7,8 @@ import { Avatar, Button, Card, CircleButton, Empty, Field, Keypad, Money, Page, 
 import { Icon } from "@/components/icons";
 import { TxGroups } from "@/components/tx";
 import { api, ApiError } from "@/lib/client";
-import { useAccount, useAction, useCategories, useTransactions } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterDelete, useAccount, useAction, useCategories, useTransactions } from "@/lib/hooks";
 import { ACCOUNT_META } from "@/lib/defaults";
 import { symbolFor } from "@/lib/money";
 
@@ -36,7 +37,7 @@ function Wallet({ id }: { id: string }) {
   const { data, error } = useAccount(id);
   const txs = useTransactions({ account: [id] });
   const [sheet, setSheet] = useState<null | "invite" | "adjust">(null);
-  const removeMember = useAction((mid: string) => api(`/api/accounts/${id}/members/${mid}`, { method: "DELETE" }));
+  const qc = useQueryClient();
   const a = data?.account;
 
   if (error) return <Page nav={false}><TopBar back="/wallets" /><Empty icon="wallet" title="Account not found" /></Page>;
@@ -108,10 +109,15 @@ function Wallet({ id }: { id: string }) {
                   <button
                     onClick={async () => {
                       const leaving = m.user === user.id;
-                      if (await confirm({ title: leaving ? `Leave ${a.name}?` : `Remove ${m.name ?? m.email}?`, confirm: leaving ? "Leave" : "Remove", danger: true })) {
-                        await removeMember.mutateAsync(m.id);
-                        if (leaving) router.replace("/wallets");
-                      }
+                      const done = await confirm({
+                        title: leaving ? `Leave ${a.name}?` : `Remove ${m.name ?? m.email}?`, confirm: leaving ? "Leave" : "Remove", danger: true,
+                        action: async () => {
+                          await api(`/api/accounts/${id}/members/${m.id}`, { method: "DELETE" });
+                          // Once you've left, this wallet's own queries 404.
+                          await (leaving ? refreshAfterDelete(qc, ["account", id]) : qc.invalidateQueries());
+                        },
+                      });
+                      if (done && leaving) router.replace("/wallets");
                     }}
                     className="text-[13px] font-bold text-neg"
                   >

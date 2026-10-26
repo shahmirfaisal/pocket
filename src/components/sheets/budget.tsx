@@ -7,7 +7,7 @@ import { useApp, useSheetOpen } from "../app";
 import { Button, CatIcon, Keypad, Segmented, Sheet, Toggle, amountDisplay, applyKey, useConfirm, useToast } from "../ui";
 import { Icon } from "../icons";
 import { api, ApiError } from "@/lib/client";
-import { useCategories, useGoal } from "@/lib/hooks";
+import { refreshAfterDelete, useCategories, useGoal } from "@/lib/hooks";
 import { formatMoney, symbolFor } from "@/lib/money";
 import { CategoryPicker } from "./add";
 import { useQueryClient } from "@tanstack/react-query";
@@ -84,9 +84,14 @@ function BudgetForm({ open, setOpen, initialMode, budget, goal }: { open: boolea
 
   const remove = async () => {
     const what = mode === "budget" ? "budget" : "goal";
-    if (!(await confirm({ title: `Delete this ${what}?`, confirm: "Delete", danger: true }))) return;
-    await api(mode === "budget" ? `/api/budgets/${budget!.id}` : `/api/goals/${goal!.id}`, { method: "DELETE" });
-    await qc.invalidateQueries();
+    const done = await confirm({
+      title: `Delete this ${what}?`, confirm: "Delete", danger: true,
+      action: async () => {
+        await api(mode === "budget" ? `/api/budgets/${budget!.id}` : `/api/goals/${goal!.id}`, { method: "DELETE" });
+        await (mode === "goal" ? refreshAfterDelete(qc, ["goal", goal!.id]) : qc.invalidateQueries());
+      },
+    });
+    if (!done) return;
     toast("Deleted");
     setOpen(false);
     if (mode === "goal") router.replace("/budgets");

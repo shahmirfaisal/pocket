@@ -64,9 +64,15 @@ function RecurringForm({ open, setOpen, existing }: { open: boolean; setOpen: (o
     }
   };
   const remove = async () => {
-    if (!(await confirm({ title: `Stop "${existing!.name}"?`, body: "Past transactions stay. It just won't repeat any more.", confirm: "Delete", danger: true }))) return;
-    await api(`/api/recurring/${existing!.id}`, { method: "DELETE" });
-    await qc.invalidateQueries();
+    const done = await confirm({
+      title: `Stop "${existing!.name}"?`, body: "Past transactions stay. It just won't repeat any more.", confirm: "Delete", danger: true,
+      action: async () => {
+        await api(`/api/recurring/${existing!.id}`, { method: "DELETE" });
+        await qc.invalidateQueries();
+      },
+    });
+    if (!done) return;
+    toast("Deleted");
     setOpen(false);
   };
 

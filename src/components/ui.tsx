@@ -314,14 +314,34 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
-type ConfirmOpts = { title: string; body?: string; confirm: string; danger?: boolean };
+/**
+ * `action` runs while the dialog stays open with a spinner, so the dialog only closes once the work
+ * (e.g. a delete and the refetch after it) is done. If it throws, the error is shown and it resolves false.
+ */
+type ConfirmOpts = { title: string; body?: string; confirm: string; danger?: boolean; action?: () => Promise<unknown> };
 const ConfirmCtx = createContext<(o: ConfirmOpts) => Promise<boolean>>(async () => false);
 export const useConfirm = () => useContext(ConfirmCtx);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const toast = useToast();
   const [state, setState] = useState<(ConfirmOpts & { resolve: (v: boolean) => void }) | null>(null);
+  const [busy, setBusy] = useState(false);
   const ask = useCallback((o: ConfirmOpts) => new Promise<boolean>((resolve) => setState({ ...o, resolve })), []);
-  const close = (v: boolean) => { state?.resolve(v); setState(null); };
+  const close = (v: boolean) => { if (busy) return; state?.resolve(v); setState(null); };
+  const accept = async () => {
+    if (!state?.action) return close(true);
+    setBusy(true);
+    try {
+      await state.action();
+      state.resolve(true);
+    } catch (e) {
+      toast(e instanceof Error && e.message ? e.message : "Something went wrong", "error");
+      state.resolve(false);
+    } finally {
+      setBusy(false);
+      setState(null);
+    }
+  };
   useEffect(() => {
     if (!state) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close(false);
@@ -340,9 +360,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <span className="text-[15px] font-bold">{state.title}</span>
                 {state.body && <span className="text-[13px] leading-snug text-muted">{state.body}</span>}
               </div>
-              <button onClick={() => close(true)} className={clsx("h-14 w-full border-t border-line text-[17px] font-semibold active:bg-chip", state.danger ? "text-neg" : "text-ink")}>{state.confirm}</button>
+              <button onClick={accept} disabled={busy} className={clsx("flex h-14 w-full items-center justify-center border-t border-line text-[17px] font-semibold active:bg-chip", state.danger ? "text-neg" : "text-ink")}>{busy ? <Spinner /> : state.confirm}</button>
             </div>
-            <button onClick={() => close(false)} className="h-14 rounded-[18px] bg-card text-[17px] font-bold active:bg-chip">Cancel</button>
+            <button onClick={() => close(false)} disabled={busy} className="h-14 rounded-[18px] bg-card text-[17px] font-bold active:bg-chip disabled:opacity-50">Cancel</button>
           </div>
         </div>
       )}

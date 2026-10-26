@@ -7,7 +7,8 @@ import { Button, Card, Page, Skeleton, TopBar, TxAmount, Money, useConfirm, useT
 import { Icon } from "@/components/icons";
 import { TxIcon, txTitle, dayLabel, timeLabel } from "@/components/tx";
 import { api, ApiError, saveTransaction } from "@/lib/client";
-import { useAction, useTransaction } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterDelete, useTransaction } from "@/lib/hooks";
 import { partsIn, MONTHS } from "@/lib/dates";
 
 export default function TransactionDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +19,19 @@ export default function TransactionDetail({ params }: { params: Promise<{ id: st
   const toast = useToast();
   const { data, error } = useTransaction(id);
   const [viewing, setViewing] = useState(false);
-  const del = useAction(() => api(`/api/transactions/${id}`, { method: "DELETE" }), { onSuccess: () => { toast("Deleted"); router.back(); } });
+  const qc = useQueryClient();
+  const remove = async () => {
+    const done = await confirm({
+      title: "Delete this transaction?", confirm: "Delete", danger: true,
+      action: async () => {
+        await api(`/api/transactions/${id}`, { method: "DELETE" });
+        await refreshAfterDelete(qc, ["transaction", id]);
+      },
+    });
+    if (!done) return;
+    toast("Deleted");
+    router.back();
+  };
   const t = data?.transaction;
 
   if (error) return <Page nav={false}><TopBar back="/activity" /><p className="p-6 text-center text-muted">{(error as ApiError).message}</p></Page>;
@@ -76,7 +89,7 @@ export default function TransactionDetail({ params }: { params: Promise<{ id: st
 
       <div className="mt-auto grid grid-cols-2 gap-2.5 pt-4">
         <Button variant="secondary" size="md" onClick={duplicate}>Duplicate</Button>
-        <Button variant="danger" size="md" loading={del.isPending} onClick={async () => (await confirm({ title: "Delete this transaction?", confirm: "Delete", danger: true })) && del.mutate(undefined)}>Delete</Button>
+        <Button variant="danger" size="md" onClick={remove}>Delete</Button>
       </div>
 
       {viewing && t.receipt && (

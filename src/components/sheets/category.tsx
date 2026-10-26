@@ -45,15 +45,16 @@ export function CategorySheet({ edit, type, onClose }: { edit?: string; type?: "
     }
   };
   const remove = async () => {
-    if (!(await confirm({ title: `Delete ${existing!.name}?`, body: `Its transactions move to “${kind === "income" ? "Other income" : "Other"}” — nothing is lost.`, confirm: "Delete category", danger: true }))) return;
-    try {
-      await api(`/api/categories/${existing!.id}`, { method: "DELETE" });
-      await qc.invalidateQueries();
-      setOpen(false);
-      router.replace("/categories");
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Couldn't delete", "error");
-    }
+    const done = await confirm({
+      title: `Delete ${existing!.name}?`, body: `Its transactions move to “${kind === "income" ? "Other income" : "Other"}” — nothing is lost.`, confirm: "Delete category", danger: true,
+      action: async () => {
+        await api(`/api/categories/${existing!.id}`, { method: "DELETE" });
+        await qc.invalidateQueries();
+      },
+    });
+    if (!done) return;
+    setOpen(false);
+    router.replace("/categories");
   };
 
   return (

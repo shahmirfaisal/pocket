@@ -8,7 +8,7 @@ import { Icon } from "./icons";
 import { useApp } from "./app";
 import { api, haptic } from "@/lib/client";
 import { dayKey, partsIn, MONTHS, WEEKDAYS } from "@/lib/dates";
-import { useAction } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import type { TxJSON } from "@/lib/types";
 
 export function dayLabel(iso: string | Date, tz: string) {
@@ -63,7 +63,7 @@ export function TxRow({ t, currency, showTime, swipe = true }: { t: TxJSON; curr
   const confirm = useConfirm();
   const toast = useToast();
   const dragged = useRef(false);
-  const del = useAction(() => api(`/api/transactions/${t.id}`, { method: "DELETE" }), { onSuccess: () => toast("Deleted") });
+  const qc = useQueryClient();
 
   const close = () => animate(x, 0, { type: "spring", stiffness: 500, damping: 40 });
   const content = (
@@ -93,7 +93,14 @@ export function TxRow({ t, currency, showTime, swipe = true }: { t: TxJSON; curr
         <button
           onClick={async () => {
             close();
-            if (await confirm({ title: "Delete this transaction?", body: `${txTitle(t)} will be removed.`, confirm: "Delete", danger: true })) del.mutate(undefined);
+            const done = await confirm({
+              title: "Delete this transaction?", body: `${txTitle(t)} will be removed.`, confirm: "Delete", danger: true,
+              action: async () => {
+                await api(`/api/transactions/${t.id}`, { method: "DELETE" });
+                await qc.invalidateQueries();
+              },
+            });
+            if (done) toast("Deleted");
           }}
           className="flex flex-1 flex-col items-center justify-center gap-1 bg-[#D6402A] text-xs font-semibold text-white"
         >

@@ -1,5 +1,5 @@
 "use client";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import type {
   AccountJSON, BudgetRow, CategoryJSON, DebtRow, GoalRow, Insights, NotificationRow, PersonRow, RecurringItem, Summary, Template, TxJSON,
@@ -90,6 +90,15 @@ export const useNotifications = () =>
 
 export const useReportsInfo = () =>
   useQuery({ queryKey: ["reports"], queryFn: () => api<{ count: number; lastBackup: string | null; lastMonth: { label: string; from: string; to: string } }>("/api/reports") });
+
+/**
+ * Refresh every screen after deleting something — except the deleted item's own query (e.g. ["account", id]),
+ * which would just 404 and flash "not found" on the page we're about to leave.
+ */
+export function refreshAfterDelete(qc: QueryClient, key: readonly unknown[]) {
+  const k = JSON.stringify(key);
+  return qc.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey.slice(0, key.length)) !== k });
+}
 
 /** A mutation that refreshes everything afterwards — simplest way to keep every screen consistent. */
 export function useAction<TVars, TRes = unknown>(fn: (v: TVars) => Promise<TRes>, opts: { onSuccess?: (r: TRes, v: TVars) => void; onError?: (e: Error) => void } = {}) {

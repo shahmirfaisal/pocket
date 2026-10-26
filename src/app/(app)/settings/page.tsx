@@ -50,8 +50,7 @@ export default function SettingsPage() {
     try { await saveSettings(patch); } catch (e) { toast(e instanceof ApiError ? e.message : "Couldn't save", "error"); }
   };
   const confirmLogout = async () => {
-    if (!(await confirm({ title: "Log out of Pocket?", confirm: "Log out", danger: true }))) return;
-    await logout();
+    await confirm({ title: "Log out of Pocket?", confirm: "Log out", danger: true, action: logout });
   };
   const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [user.timezone];
 

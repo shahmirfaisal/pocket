@@ -49,10 +49,13 @@ export default function QuickAddPage() {
 
   const applyTemplate = async (t: Template) => {
     if (editing) {
-      if (await confirm({ title: `Delete “${t.name}”?`, confirm: "Delete", danger: true })) {
-        await api(`/api/templates/${t.id}`, { method: "DELETE" });
-        qc.invalidateQueries({ queryKey: ["templates"] });
-      }
+      await confirm({
+        title: `Delete “${t.name}”?`, confirm: "Delete", danger: true,
+        action: async () => {
+          await api(`/api/templates/${t.id}`, { method: "DELETE" });
+          await qc.invalidateQueries({ queryKey: ["templates"] });
+        },
+      });
       return;
     }
     const acc = t.account?.id ?? account?.id;

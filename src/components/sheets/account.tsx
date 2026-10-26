@@ -6,7 +6,8 @@ import { useApp, useSheetOpen } from "../app";
 import { Button, Sheet, Toggle, useConfirm, useToast } from "../ui";
 import { Icon, ACCOUNT_ICON } from "../icons";
 import { api, ApiError } from "@/lib/client";
-import { useAccount, useAction } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { refreshAfterDelete, useAccount } from "@/lib/hooks";
 import { ACCOUNT_COLORS, ACCOUNT_META } from "@/lib/defaults";
 import { CURRENCIES, formatMoney, toMinor } from "@/lib/money";
 import type { AccountJSON } from "@/lib/types";
@@ -31,7 +32,8 @@ function AccountForm({ open, setOpen, existing }: { open: boolean; setOpen: (o: 
   const [include, setInclude] = useState(existing?.includeInTotal ?? true);
   const [dueDay, setDueDay] = useState(existing?.creditDueDay ? String(existing.creditDueDay) : "");
   const [busy, setBusy] = useState(false);
-  const del = useAction(() => api(`/api/accounts/${existing!.id}`, { method: "DELETE" }));
+  const [archiving, setArchiving] = useState(false);
+  const qc = useQueryClient();
 
   const startingMinor = balance ? toMinor(balance.startsWith("-") ? balance.slice(1) : balance) * (balance.startsWith("-") ? -1 : 1) : 0;
   const save = async () => {
@@ -54,19 +56,32 @@ function AccountForm({ open, setOpen, existing }: { open: boolean; setOpen: (o: 
 
   const remove = async () => {
     if (!existing) return;
-    if (await confirm({ title: `Delete ${existing.name}?`, body: "Its transactions are deleted too. Archive it instead to keep your history.", confirm: "Delete account", danger: true })) {
-      await del.mutateAsync(undefined);
-      toast("Account deleted");
-      setOpen(false);
-      router.replace("/wallets");
-    }
+    const done = await confirm({
+      title: `Delete ${existing.name}?`, body: "Its transactions are deleted too. Archive it instead to keep your history.", confirm: "Delete account", danger: true,
+      action: async () => {
+        await api(`/api/accounts/${existing.id}`, { method: "DELETE" });
+        await refreshAfterDelete(qc, ["account", existing.id]);
+      },
+    });
+    if (!done) return;
+    toast("Account deleted");
+    setOpen(false);
+    router.replace("/wallets");
   };
   const archive = async () => {
     if (!existing) return;
-    await api(`/api/accounts/${existing.id}`, { method: "PATCH", body: { archived: !existing.archived } });
-    toast(existing.archived ? "Account restored" : "Account archived");
-    setOpen(false);
-    router.replace("/wallets");
+    setArchiving(true);
+    try {
+      await api(`/api/accounts/${existing.id}`, { method: "PATCH", body: { archived: !existing.archived } });
+      await qc.invalidateQueries();
+      toast(existing.archived ? "Account restored" : "Account archived");
+      setOpen(false);
+      router.replace("/wallets");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Couldn't save", "error");
+    } finally {
+      setArchiving(false);
+    }
   };
 
   return (
@@ -115,7 +130,7 @@ function AccountForm({ open, setOpen, existing }: { open: boolean; setOpen: (o: 
       <Button onClick={save} loading={busy} disabled={!name.trim() || isNaN(startingMinor)}>{existing ? "Save" : "Add account"}</Button>
       {existing?.isOwner && (
         <div className="flex gap-2">
-          <Button variant="secondary" size="md" className="flex-1" onClick={archive}>{existing.archived ? "Unarchive" : "Archive"}</Button>
+          <Button variant="secondary" size="md" className="flex-1" loading={archiving} onClick={archive}>{existing.archived ? "Unarchive" : "Archive"}</Button>
           <Button variant="danger" size="md" className="flex-1" onClick={remove}>Delete</Button>
         </div>
       )}
