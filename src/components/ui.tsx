@@ -192,7 +192,7 @@ export function Button({
   children, onClick, variant = "primary", className, loading, disabled, type = "button", href, size = "lg",
 }: { children: ReactNode; onClick?: () => void; variant?: "primary" | "accent" | "secondary" | "danger" | "ghost"; className?: string; loading?: boolean; disabled?: boolean; type?: "button" | "submit"; href?: string; size?: "md" | "lg" }) {
   const cls = clsx(
-    "pressable flex items-center justify-center gap-2 rounded-[18px] font-bold disabled:opacity-50",
+    "pressable flex shrink-0 items-center justify-center gap-2 rounded-[18px] font-bold disabled:opacity-50",
     size === "lg" ? "h-14 text-[17px]" : "h-12 rounded-2xl text-[15px]",
     variant === "primary" && "bg-ink text-bg",
     variant === "accent" && "bg-accent text-white",
@@ -257,6 +257,9 @@ export function Sheet({
         <Drawer.Overlay className="fixed inset-0 z-40" />
         <Drawer.Content
           aria-describedby={undefined}
+          // A confirm opened from this sheet sits outside it; using it shouldn't dismiss the sheet.
+          onInteractOutside={(e) => { if ((e.target as Element | null)?.closest?.("[data-confirm]")) e.preventDefault(); }}
+          onEscapeKeyDown={(e) => { if (document.querySelector("[data-confirm]")) e.preventDefault(); }}
           className={clsx("fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-[520px] flex-col rounded-t-[28px] bg-bg outline-none", className)}
           style={{ top: `calc(${top}px + env(safe-area-inset-top))` }}
         >
@@ -272,7 +275,7 @@ export function Sheet({
               ) : right}
             </div>
           </div>
-          <div className="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-2" data-vaul-no-drag="">
+          <div className="no-scrollbar flex flex-1 flex-col gap-4 overflow-y-auto px-5 *:shrink-0 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-2" data-vaul-no-drag="">
             {children}
           </div>
         </Drawer.Content>
@@ -329,7 +332,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmCtx.Provider value={ask}>
       {children}
       {state && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]" onClick={() => close(false)}>
+        // pointer-events-auto: an open sheet (modal dialog) sets pointer-events: none on <body>.
+        <div data-confirm="" className="pointer-events-auto fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-3 pb-[calc(env(safe-area-inset-bottom)+12px)]" onClick={() => close(false)}>
           <div className="page-in flex w-full max-w-[460px] flex-col gap-2" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label={state.title}>
             <div className="overflow-hidden rounded-[18px] bg-card">
               <div className="flex flex-col gap-1 px-4 py-4 text-center">

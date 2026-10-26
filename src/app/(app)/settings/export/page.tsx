@@ -48,7 +48,7 @@ export default function ExportPage() {
   });
 
   const restore = async (file: File) => {
-    if (!(await confirm({ title: "Restore this backup?", body: "Everything currently in your Pocket account will be replaced with the backup.", confirm: "Replace and restore", danger: true }))) return;
+    if (!(await confirm({ title: "Restore this backup?", body: "Everything currently in your Pocket account will be replaced with the backup. Shared wallets are left as they are.", confirm: "Replace and restore", danger: true }))) return;
     await run("restore", async () => {
       const r = await api<{ counts: { transactions: number } }>("/api/restore", { method: "POST", body: JSON.parse(await file.text()) });
       await qc.invalidateQueries();

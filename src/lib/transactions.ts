@@ -48,6 +48,8 @@ export async function createTransaction(user: UserDoc, input: TxInput, opts: { r
     if (dup) return dup;
   }
   const { acc, category } = await validateRefs(user, input);
+  const split = input.split && input.type === "expense" ? input.split : null;
+  if (split && split.people.reduce((s, p) => s + p.amount, 0) > input.amount) throw new HttpError(400, "Split amounts are more than the total");
   const tx = await Transaction.create({
     user: user._id,
     account: input.account,
@@ -64,10 +66,8 @@ export async function createTransaction(user: UserDoc, input: TxInput, opts: { r
     recurring: opts.recurring,
   });
 
-  if (input.split && input.type === "expense") {
-    const total = input.split.people.reduce((s, p) => s + p.amount, 0);
-    if (total > input.amount) throw new HttpError(400, "Split amounts are more than the total");
-    for (const p of input.split.people) {
+  if (split) {
+    for (const p of split.people) {
       const person = await resolvePerson(user, p);
       await Debt.create({ user: user._id, person: person._id, amount: p.amount, note: input.note || "Split", date: input.date, transaction: tx._id });
     }
